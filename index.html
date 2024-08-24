@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+        }
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        input[type="text"] {
+            padding: 10px;
+            width: 80%;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #qrcode {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QR Code Generator</h1>
+        <input type="text" id="text-input" placeholder="Enter text here" />
+        <button onclick="generateQRCode()">Generate QR Code</button>
+        <div id="qrcode"></div>
+    </div>
+
+    <!-- Include the qrcode.min.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <script>
+        function generateQRCode() {
+            var text = document.getElementById("text-input").value;
+            var qrCodeContainer = document.getElementById("qrcode");
+            qrCodeContainer.innerHTML = "";  // Clear previous QR code
+
+            if (text) {
+                // Generate QR code as a Data URL
+                QRCode.toDataURL(text, function (err, url) {
+                    if (err) {
+                        console.error(err);
+                        return;
+                    }
+                    var img = document.createElement('img');
+                    img.src = url;
+                    qrCodeContainer.appendChild(img);
+                });
+            } else {
+                alert("Please enter some text.");
+            }
+        }
+    </script>
+</body>
+</html>
