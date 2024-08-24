@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>QR Code Generator</title>
+    <title>QR Code Generator and Scanner</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -13,6 +13,7 @@
             height: 100vh;
             background-color: #f0f0f0;
             margin: 0;
+            flex-direction: column;
         }
         .container {
             text-align: center;
@@ -20,34 +21,97 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            width: 300px;
+            display: none; /* Ẩn container khi không sử dụng */
         }
         input[type="text"] {
             padding: 10px;
-            width: 80%;
+            width: 100%;
             margin-bottom: 10px;
             font-size: 16px;
+            box-sizing: border-box;
         }
         button {
             padding: 10px 20px;
             font-size: 16px;
             cursor: pointer;
+            margin-bottom: 20px;
         }
-        #qrcode {
+        #qrcode, #reader {
             margin-top: 20px;
+        }
+        #reader {
+            width: 300px;
+            height: 300px;
+            margin: auto;
+            display: none; /* Ẩn phần tử reader khi không sử dụng */
+        }
+        #scanned-result {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        video {
+            width: 100%;
+            max-width: 300px;
+            display: none; /* Ẩn video khi không sử dụng */
+        }
+        .active {
+            background-color: #007bff;
+            color: white;
+        }
+        .inactive {
+            background-color: #e0e0e0;
+            color: #333;
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div>
+        <button id="generate-qr-btn" class="active" onclick="showGenerator()">Generate QR Code</button>
+        <button id="scan-qr-btn" class="inactive" onclick="showScanner()">Scan QR Code</button>
+    </div>
+
+    <div id="generate-container" class="container">
         <h1>QR Code Generator</h1>
         <input type="text" id="text-input" placeholder="Enter text here" />
         <button onclick="generateQRCode()">Generate QR Code</button>
         <div id="qrcode"></div>
     </div>
 
+    <div id="scan-container" class="container">
+        <h1>QR Code Scanner</h1>
+        <video id="webcam" autoplay></video>
+        <button id="start-scan-btn" onclick="startScanner()">Start Scanning</button>
+        <button id="stop-scan-btn" onclick="stopScanner()" style="display: none;">Stop Scanning</button>
+        <div id="reader"></div>
+        <p id="scanned-result"></p>
+    </div>
+
     <!-- Include the qrcode.min.js library -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <!-- Include the html5-qrcode.min.js library from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
     <script>
+        function showGenerator() {
+            document.getElementById("generate-container").style.display = "block";
+            document.getElementById("scan-container").style.display = "none";
+            document.getElementById("generate-qr-btn").classList.add("active");
+            document.getElementById("generate-qr-btn").classList.remove("inactive");
+            document.getElementById("scan-qr-btn").classList.add("inactive");
+            document.getElementById("scan-qr-btn").classList.remove("active");
+        }
+
+        function showScanner() {
+            document.getElementById("generate-container").style.display = "none";
+            document.getElementById("scan-container").style.display = "block";
+            document.getElementById("generate-qr-btn").classList.add("inactive");
+            document.getElementById("generate-qr-btn").classList.remove("active");
+            document.getElementById("scan-qr-btn").classList.add("active");
+            document.getElementById("scan-qr-btn").classList.remove("inactive");
+        }
+
         function generateQRCode() {
             var text = document.getElementById("text-input").value;
             var qrCodeContainer = document.getElementById("qrcode");
@@ -68,6 +132,83 @@
                 alert("Please enter some text.");
             }
         }
+
+        let html5QrCode;
+        let stream;
+
+        function startScanner() {
+            const readerElement = document.getElementById("reader");
+            const videoElement = document.getElementById("webcam");
+            const stopButton = document.getElementById("stop-scan-btn");
+            
+            readerElement.style.display = "block";  // Hiển thị phần tử reader
+            stopButton.style.display = "inline";  // Hiển thị nút dừng
+
+            // videoElement.style.display = "block"; // Hiển thị video
+
+            if (typeof Html5Qrcode === "undefined") {
+                console.error("Html5Qrcode library is not loaded.");
+                return;
+            }
+
+            html5QrCode = new Html5Qrcode("reader");
+
+            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                document.getElementById("scanned-result").innerText = `Scanned Code: ${decodedText}`;
+                stopScanner(); // Dừng quét sau khi quét thành công
+            };
+
+            const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+            Html5Qrcode.getCameras().then(cameras => {
+                if (cameras && cameras.length) {
+                    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(mediaStream => {
+                        videoElement.srcObject = mediaStream;
+                        html5QrCode.start(
+                            { facingMode: "environment" },
+                            config,
+                            qrCodeSuccessCallback
+                        ).catch(err => {
+                            console.error("Error starting camera:", err);
+                            alert("Unable to start the camera. Please check your camera permissions or try again.");
+                        });
+                    }).catch(err => {
+                        console.error("Error accessing webcam:", err);
+                        alert("Unable to access webcam. Please check your camera settings.");
+                    });
+                } else {
+                    alert("No camera found.");
+                }
+            }).catch(err => {
+                console.error("Error fetching cameras:", err);
+                alert("Unable to access camera. Please ensure camera permissions are granted and try again.");
+            });
+        }
+
+        function stopScanner() {
+            const readerElement = document.getElementById("reader");
+            const videoElement = document.getElementById("webcam");
+            const stopButton = document.getElementById("stop-scan-btn");
+
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    console.log("QR code scanning stopped.");
+                    readerElement.style.display = "none"; // Ẩn phần tử reader
+                    videoElement.style.display = "none"; // Ẩn video
+                    stopButton.style.display = "none"; // Ẩn nút dừng
+
+                    if (stream) {
+                        stream.getTracks().forEach(track => track.stop());
+                        videoElement.srcObject = null;
+                    }
+                }).catch(err => {
+                    console.error("Error stopping QR code scanner:", err);
+                });
+            }
+        }
+
+        // Initialize with QR Code Generator view
+        showGenerator();
     </script>
 </body>
 </html>
